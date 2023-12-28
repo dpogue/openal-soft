@@ -89,6 +89,52 @@ bool semaphore::try_wait() noexcept
 
 } // namespace al
 
+#elif defined(__APPLE__)
+
+namespace al {
+
+semaphore::semaphore(unsigned int initial)
+{
+    mSem.sem = MACH_PORT_NULL;
+    mSem.value = initial;
+
+    kern_return_t ret = semaphore_create(mach_task_self(), &mSem.sem, SYNC_POLICY_FIFO, 0);
+    if(ret != KERN_SUCCESS)
+        throw std::system_error(std::make_error_code(std::errc::resource_unavailable_try_again));
+}
+
+semaphore::~semaphore()
+{ semaphore_destroy(mach_task_self(), mSem.sem); }
+
+void semaphore::post()
+{
+    intptr_t val = mSem.value.fetch_add(1, std::memory_order_release);
+    if (val <= 0) {
+        semaphore_signal(mSem.sem);
+    }
+}
+
+void semaphore::wait() noexcept
+{
+    intptr_t val = mSem.value.fetch_sub(1, std::memory_order_acquire);
+    if (val < 0) {
+        semaphore_wait(mSem.sem);
+    }
+}
+
+bool semaphore::try_wait() noexcept
+{
+    intptr_t orig = mSem.value.load();
+    while (orig < 0) {
+        if (mSem.value.compare_exchange_weak(orig, orig+1, std::memory_order_relaxed)) {
+            return false;
+        }
+    }
+    return semaphore_wait(mSem.sem) == KERN_SUCCESS;
+}
+
+} // namespace al
+
 #else /* !__APPLE__ */
 
 #include <cerrno>

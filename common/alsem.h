@@ -8,7 +8,8 @@
 #include <dispatch/dispatch.h>
 #define AL_APPLE_HAVE_DISPATCH 1
 #else
-#include <semaphore.h> /* Fallback option for Apple without a working libdispatch */
+#include <atomic>
+#include <mach/mach.h> /* Fallback option for Apple without a working libdispatch */
 #endif
 #elif !defined(_WIN32)
 #include <semaphore.h>
@@ -21,6 +22,11 @@ class semaphore {
     using native_type = void*;
 #elif defined(AL_APPLE_HAVE_DISPATCH)
     using native_type = dispatch_semaphore_t;
+#elif defined(__APPLE__)
+    using native_type = struct apple_sema {
+        std::atomic<intptr_t> value;
+        semaphore_t sem;
+    };
 #else
     using native_type = sem_t;
 #endif
