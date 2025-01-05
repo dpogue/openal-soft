@@ -55,7 +55,7 @@
     #endif
 #endif
 
-#ifndef GHC_USE_STD_FS
+//#ifndef GHC_USE_STD_FS
     #define GHC_FILESYSTEM_IMPLEMENTATION
     #include "ghc_filesystem.h"
-#endif
+//#endif
